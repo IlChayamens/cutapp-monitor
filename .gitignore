@@ -1,0 +1,19 @@
+# Credenziali e token locali
+.env
+
+# Ambiente virtuale Python
+.venv/
+venv/
+
+# Cache e file generati da Python
+__pycache__/
+*.py[cod]
+
+# File temporanei del monitor
+data/state.*.tmp
+
+# File comuni degli editor e del sistema operativo
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

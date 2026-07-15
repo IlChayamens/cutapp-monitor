@@ -1,0 +1,70 @@
+name: CutApp Monitor
+
+on:
+  schedule:
+    - cron: "3,13,23,33,43,53 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cutapp-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CUTAPP_USERNAME: ${{ secrets.CUTAPP_USERNAME }}
+      CUTAPP_PASSWORD: ${{ secrets.CUTAPP_PASSWORD }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      CUTAPP_OWNER_CODE: valicenti
+      CUTAPP_SHOP_USERNAME: CrisBarbershop
+      CUTAPP_SERVICE: TAGLIO CAPELLI
+      CHECK_INTERVAL_MINUTES: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          missing=0
+          for name in CUTAPP_USERNAME CUTAPP_PASSWORD TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing repository secret::$name"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Check CutApp calendar
+        run: python monitor.py --once
+
+      - name: Commit updated state
+        shell: bash
+        run: |
+          if [ -n "$(git status --porcelain -- data/state.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -- data/state.json
+            git commit -m "Update CutApp monitor state"
+            git push
+          else
+            echo "CutApp monitor state is unchanged."
+          fi
